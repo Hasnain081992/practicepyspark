@@ -1,68 +1,59 @@
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import col, when, sum, format_number
+from pyspark.sql.functions import col, when, lit, avg
+from pyspark.sql.functions import col, lit, when, sum, avg
+from pyspark.sql.functions import sum, format_number
 
-# Initialize SparkSession
 spark = SparkSession.builder \
-    .appName("Transform") \
+    .appName("Transfrom") \
     .master("local[*]") \
     .getOrCreate()
-
-# Load data
-path = "/tmp/bigdata_nov_2024/Hasnain/sales.csv"
-df = spark.read.csv(path, header=True, inferSchema=True)
-
-# Rename columns
-df = df.withColumnRenamed('Order Date', 'Purchase Date')
-
-# Filter Data
-household_df = df.filter(col('Item Type') == 'Household')
-
-# Rename multiple columns
-df = df.withColumnRenamed('Total Revenue', 'Total_Sales') \
-       .withColumnRenamed('Total Cost', 'Total_Purchase')
-
+path= "/tmp/bigdata_nov_2024/mucteba//sales.csv"
+dataframe = spark.read.csv(path,header = True, inferSchema = True)
+dataframe.show()
+# rename the column
+dataframe = dataframe.withColumnRenamed('Order Date','Purchase Date')
+dataframe.show()
+dataframe.dtypes
+# Filter Data Based on Condition
+dataframefilter = dataframe.filter(col('Item Type') == 'Household')
+dataframefilter.show(5)
+# rename a column
+dataframe1 = dataframe.withColumnRenamed('Total Revenue', 'Total Sales')
+dataframe2 = dataframe1.withColumnRenamed('Total Cost', 'Total Purchase')
+dataframe2.show()
 # Add a new column
-df = df.withColumn('Computed_Sales', col('Unit Price') * col('Units Sold'))
 
-# Drop unnecessary columns
-df = df.drop('Order ID', 'Total Revenue')
+dataframe = dataframe.withColumn('Total sales', col('Unit Price') * col('Units Sold'))
+dataframe.show(5)
+dataframe2.dtypes
+# drop a column
 
-# Group by and aggregate
-grouped_priority_df = df.groupBy('Order Priority') \
-    .agg(sum('Computed_Sales').alias('Total_Sales_Sum')) \
-    .withColumn('Formatted_Sales', format_number('Total_Sales_Sum', 2))
+dataframe3 = dataframe2.drop('Total Revenue')
+#drop orderid
+dataframe4 = dataframe3.drop('Order ID')
+# Group By and Aggregate
+groupdf = dataframe4.groupBy('Order Priority').agg(sum('Total sales'))
+groupdf.show()
+formatted_df = dataframe4.groupBy("Order Priority") \
+    .agg(sum("Total Sales").alias("Total_Sales_Sum")) \
+    .withColumn("Formatted_Total_Sales", format_number("Total_Sales_Sum", 2)) \
+    .select("Order Priority", "Formatted_Total_Sales")
+formatted_df.show()
 
-# Group by region and sum
-revenue_df = df.groupBy('Region') \
-    .agg(sum('Total_Sales').alias('Total_Sales_Sum')) \
-    .withColumn('Formatted_Sales', format_number('Total_Sales_Sum', 2))
-
-# Sort data by Order Priority
-sorted_df = df.orderBy('Order Priority')
-
-# Replace values in a column
-replaced_df = df.withColumn('Sales Channel', when(col('Sales Channel') == 'online', 1).otherwise(0))
-
-# Group by Sales Channel
-grouped_channel_df = df.groupBy('Sales Channel') \
-    .agg(sum('Total_Sales').alias('Total_Sales_Sum')) \
-    .withColumn('Formatted_Sales', format_number('Total_Sales_Sum', 2))
-
-# Show results
-print("Filtered Household Data:")
-household_df.show(5)
-
-print("Grouped by Order Priority:")
-grouped_priority_df.show()
-
-print("Grouped by Region:")
-revenue_df.show()
-
-print("Sorted by Order Priority:")
-sorted_df.show()
-
-print("Sales Channel Replaced:")
-replaced_df.show()
-
-print("Grouped by Sales Channel:")
-grouped_channel_df.show()
+# group by revenue
+revenue = dataframe4.groupBy('Region').sum('Total Sales')
+revenue.show()
+formatreg = revenue.withColumn("sum(Total Sales)", format_number(col("sum(Total Sales)"),2))
+formatreg.show()
+# sort data by column
+sortdf = dataframe4.orderBy('Order Priority')
+sortdf.show()
+# replaced value in column
+relaced = dataframe4.withColumn('Sales Channel', when(col('Sales Channel') == 'online',1). otherwise(0))
+relaced.show()
+#group by sales
+groupchannel = dataframe4.groupBy("Sales Channel").agg(sum("Total Sales").alias('Total Salessum'))
+groupchannel.show()
+formatted_df = groupchannel.withColumn("Total Salessum", format_number(col("Total Salessum"), 2))
+formatted_df.show()
+#done
